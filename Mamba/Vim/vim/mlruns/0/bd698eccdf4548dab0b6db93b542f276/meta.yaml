@@ -1,0 +1,15 @@
+artifact_uri: file:///root/autodl-tmp/Vim/vim/mlruns/0/bd698eccdf4548dab0b6db93b542f276/artifacts
+end_time: 1725548383694
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: bd698eccdf4548dab0b6db93b542f276
+run_name: vim_small_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_with_midclstok_div2
+run_uuid: bd698eccdf4548dab0b6db93b542f276
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1725548369375
+status: 3
+tags: []
+user_id: root

@@ -1,0 +1,7 @@
+nohup python distributed/launch.py --master_port=6666 --nproc_per_node=1 vim/main.py  \
+--model vim_small_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_with_midclstok_div2 --batch-size 64 \
+--drop-path 0.05 --weight-decay 0.05 --lr 1e-3 --num_workers 1 \
+--data-set IMNET \
+--data-path /root/autodl-tmp/data/ImageNet100 \
+--output_dir ./output/vim_small_patch16_224_bimambav2_final_pool_mean_abs_pos_embed_with_midclstok_div2 \
+--no_amp
