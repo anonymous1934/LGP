@@ -1,12 +1,17 @@
 # Local & Global Patching (LGP): Position‑Free Visual Backbones
 
-> **TL;DR** — LGP removes **all position embeddings** in ViT/ViM by enriching each patch token with **multi‑band global wavelet features**. Every token carries an implicit “position signature,” making the model **invariant to patch order**, more robust, and often more accurate—*with negligible compute overhead*. See the paper: **Local and Global Patching: Goodbye for Good to Position Embeddings in Vision Transformers and Mambas**. :contentReference[oaicite:0]{index=0}
+> 🚀 **Unbelievable yet simple:** On **ImageNet‑100**, adding LGP to the **most basic** backbones yields **+8.40 Top‑1** on **ViT‑T** and **+5.31 Top‑1** on **ViM‑T** with **near‑zero extra compute** and only a **tiny plug‑in** at patch embedding.  
+> 👉 We release **pretrained weights** and **training logs** for both models:  
+> • **ViT‑T + LGP (IN‑100)** — [Weights](<link-to-vit-t-weights>) · [Logs](<link-to-vit-t-logs>)  
+> • **ViM‑T + LGP (IN‑100)** — [Weights](<link-to-vim-t-weights>) · [Logs](<link-to-vim-t-logs>)
+
+**TL;DR.** LGP removes **all position embeddings** in ViT/ViM by enriching each patch token with **multi‑band global wavelet features**. Every token carries an implicit “position signature,” making the encoder **robust to patch order** and often **more accurate**—with **negligible compute overhead**. *(Paper link: <link-to-paper>)*
 
 <p align="center">
-  <img src="assets/teaser_lgp.png" alt="LGP vs. traditional patching (recreate Fig.1 as a teaser)" width="85%">
+  <img src="assets/teaser_lgp.png" alt="LGP vs. traditional patching (teaser)" width="85%">
 </p>
 
-*Figure 1 on page 1* contrasts **conventional patching** (spatial relationships lost then re‑learned via position embeddings) with **Local‑Global Patching** (spatial structure preserved by fusing global multi‑band features into each patch at tokenization time). No extra position learning is required. :contentReference[oaicite:1]{index=1}
+*Teaser.* Conventional patching discards spatial structure and relies on learned positional channels later; **Local‑Global Patching** preserves structure by fusing **global multi‑band features** into each patch **at tokenization time**. No separate position learning is required.
 
 ---
 
@@ -28,29 +33,29 @@
 
 ## Highlights
 
-- **Position‑free tokens.** LGP equips every patch with a compact summary of the **whole image** across multiple frequency bands, making the encoder **permutation‑invariant to patch order**. See Fig.1 (p.1) and the pipeline in Fig.2 (p.4). :contentReference[oaicite:2]{index=2}  
-- **Plug‑and‑play.** Add a lightweight **global wavelet branch** + **Adaptive Fusion Block (AFB)** at the **patch embedding** stage; the rest of ViT/ViM remains unchanged. :contentReference[oaicite:3]{index=3}  
-- **Consistent gains.** On ImageNet‑100, **ViM‑S 79.12→84.50** and **ViT‑S 74.60→80.34**; smaller models benefit most. On ImageNet‑1K, ViM‑S **+1.39** and ViT‑S **+1.05** without retuning. :contentReference[oaicite:4]{index=4}  
-- **Negligible overhead.** For typical configs (e.g., `d ≤ 768`, patch size 16), LGP adds **<5% FLOPs** relative to a single Transformer block, and cost scales **linearly** with image area (Eqs. 13–14, p.5). :contentReference[oaicite:5]{index=5}
+- **Position‑free tokens.** LGP equips every patch with a compact summary of the **whole image** across multiple frequency bands, making the encoder **order‑robust** (highly tolerant to patch permutations).  
+- **Plug‑and‑play.** Add a lightweight **global wavelet branch** + **Adaptive Fusion Block (AFB)** at the **patch embedding** stage; the rest of ViT/ViM remains unchanged.  
+- **Consistent gains.** On ImageNet‑100, the smallest models benefit most—e.g., **ViT‑T +8.40** and **ViM‑T +5.31** top‑1. On ImageNet‑1K, ViT‑S **+1.05** and ViM‑S **+1.39** without retuning.  
+- **Negligible overhead.** For typical configs (e.g., `d ≤ 768`, patch size 16), LGP adds **<5% FLOPs** in practice and scales **linearly** with image area.
 
 ---
 
 ## Method at a Glance
 
-**Two synchronized paths (Fig.2, p.4):**  
-1) **Local** — standard ViT/ViM patch embedding creates local tokens.  
-2) **Global** — an `n`‑level **2‑D wavelet‑packet transform** (WPT) of the full image yields **4ⁿ** sub‑bands capturing coarse layout to fine detail; sub‑bands are channel‑concatenated, projected with `1×1` conv, and refined by **depthwise‑separable** convs to align with the patch grid.  
-3) **Adaptive Fusion Block (AFB)** — a learnable **channel gate** blends local vs. global; three depthwise‑separable convs refine the mixture. The fused tokens already contain multi‑scale semantics and **implicit position cues**, so encoders need **no absolute or relative position embeddings**. :contentReference[oaicite:6]{index=6}
+**Two synchronized paths:**
+1) **Local** — standard ViT/ViM patch embedding to create local tokens.  
+2) **Global** — an `n`‑level **2‑D wavelet‑packet transform** (WPT) of the full image yields **4ⁿ** sub‑bands; sub‑bands are channel‑concatenated, projected with `1×1` conv, and refined by **depthwise‑separable** convs to align with the patch grid.  
+3) **Adaptive Fusion Block (AFB)** — a learnable **channel gate** blends local and global signals; three depthwise‑separable convs refine the mixture. The fused tokens already contain multi‑scale semantics and **implicit positional cues**, so encoders need **no absolute/relative position embeddings**.
 
-**Injective positional signature.** Because wavelet bases are spatially localized, the spectral vector aggregated for patch `(i,j)` is **one‑to‑one** with its location—formally, `(i₁,j₁) ≠ (i₂,j₂) ⇒ f_{i₁,j₁} ≠ f_{i₂,j₂}` (Eq. 5, p.4). Thus, tokens carry position **without** any learned positional channel. :contentReference[oaicite:7]{index=7}
+**Injective positional signature (intuition).** Because wavelet bases are spatially localized, the spectral vector aggregated for patch `(i, j)` is a distinctive signature of its location, yielding strong **order robustness** without explicit positional channels.
 
-**Recommended setting.** Set the wavelet depth to `n = log₂(Ph)` so that the 4ⁿ sub‑bands align exactly with the patch grid; this enables **patch‑wise spectral pooling** (p.4). :contentReference[oaicite:8]{index=8}
+**Recommended depth.** Choose `n` so that **`4^n = P_h × P_w`**, where `P_h × P_w` is the patch grid. For square grids (`P_h = P_w = P`), this reduces to **`n = log₂ P`**—enabling patch‑wise spectral pooling.
 
 ---
 
 ## Results
 
-**ImageNet‑100** (*scaling study, Table 3*) :contentReference[oaicite:9]{index=9}
+**ImageNet‑100** (*scaling study*)
 
 | Backbone | Params (M) | GFLOPs | Top‑1 ↑ |
 |---|---:|---:|---:|
@@ -61,25 +66,10 @@
 | **ViT‑S** | 22.05 → 23.18 | 3.22 → 3.46 | **74.60 → 80.34** (+5.74) |
 | **ViT‑B** | 86.57 → 90.59 | 12.02 → 12.84 | **76.23 → 80.62** (+4.39) |
 
-**Robustness to shuffling** (*Table 4*). LGP nearly eliminates sensitivity to **patch order** and **band order**: ViM‑S drops **−12.66%** when shuffling patches, while **ViM‑S+LGP** drops only **−0.12%**; ViT‑S shows a similar pattern (−4.29% vs. −0.09%). :contentReference[oaicite:10]{index=10}
+**Robustness to shuffling.** LGP sharply reduces sensitivity to **patch order** and **band order** (e.g., ViM‑S drop: **−12.66% → −0.12%**; ViT‑S: **−4.29% → −0.09%**).
 
-| Model | Normal | Patch Shuffle | Band Shuffle |
-|---|---:|---:|---:|
-| ViM‑S | 79.12 | 66.46 (−12.66) | — |
-| **ViM‑S + LGP** | **84.50** | **84.38 (−0.12)** | **84.18 (−0.32)** |
-| ViT‑S | 74.60 | 70.31 (−4.29) | — |
-| **ViT‑S + LGP** | **80.34** | **80.25 (−0.09)** | **80.32 (−0.02)** |
+**ImageNet‑1K.** Out‑of‑the‑box, LGP yields **~+1%** absolute top‑1 at this scale (no extra tuning).
 
-**ImageNet‑1K** (*Table 6*). Out‑of‑the‑box, LGP yields **~+1%** absolute top‑1 at this scale (no extra tuning). :contentReference[oaicite:11]{index=11}
-
-| Backbone | Baseline | +LGP | Gain |
-|---|---:|---:|---:|
-| ViT‑Small | 75.78 | 76.83 | +1.05 |
-| ViM‑Small | 79.52 | 80.91 | +1.39 |
-| SwinV2‑Small | 82.71 | 83.61 | +0.90 |
-| MambaVision‑Small | 83.01 | 83.86 | +0.85 |
-
-**Breadth.** Across **32 public backbones** spanning six paradigms (plain/distilled ViTs, frequency mixers, local‑window hierarchies, Conv‑Transformer hybrids, efficient/linear attention, state‑space), LGP **consistently boosts** ImageNet‑100 accuracy—e.g., **LinearViT‑Tiny +5.95** and **ViM‑Tiny +5.31**—with modest parameter/compute overheads (Table 5). :contentReference[oaicite:12]{index=12}
-
----
-
+> 🔗 **Artifacts.** We provide **pretrained weights** and **training logs** for **ViT‑T + LGP** and **ViM‑T + LGP** on ImageNet‑100:  
+> • ViT‑T + LGP — [Weights](<link-to-vit-t-weights>) · [Logs](<link-to-vit-t-logs>)  
+> • ViM‑T + LGP — [Weights](<link-to-vim-t-weights>) · [Logs](<link-to-vim-t-logs>)
